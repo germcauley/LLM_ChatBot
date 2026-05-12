@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+.env
+env/
+
+# API keys
+.env
+*.env
+
+# Docker
+.dockerignore
+
+# VSCode
+.vscode/
+
+# Mac
+.DS_Store
+
+# Uploaded files
+static/uploads/
+
+# Jupyter
+.ipynb_checkpoints/
+
+*.pdf
+*.ipynb

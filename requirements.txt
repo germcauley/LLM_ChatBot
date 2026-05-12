@@ -1,0 +1,8 @@
+flask
+gunicorn
+ollama
+ddgs
+wikipedia-api
+google-genai
+pypdf2
+Pillow
