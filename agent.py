@@ -5,7 +5,6 @@ import ollama as ollama_lib
 from dataclasses import dataclass, field
 from typing import Optional, Callable
 from datetime import date
-import json
 import re
 import ast
 import operator
@@ -88,7 +87,6 @@ _SAFE_OPS = {
     ast.Pow: operator.pow, ast.Mod: operator.mod,
     ast.FloorDiv: operator.floordiv, ast.USub: operator.neg,
 }
-# test
 
 def _safe_eval(node):
     """Recursively evaluate an AST node using only whitelisted ops."""
@@ -119,4 +117,46 @@ calc_tool = Tool(
     function=calculator,
 )
 
-print(calc_tool.run(expression="(15 ** 2) + (20 ** 2)"))
+def web_search(query: str, max_results: int = 5) -> str:
+    """Search the web and return a summary of top results."""
+    with DDGS() as ddgs:
+        results = list(ddgs.text(query, max_results=max_results))
+    if not results:
+        return f"No results found for: {query}"
+    parts = []
+    for i, r in enumerate(results, 1):
+        parts.append(f"[{i}] {r['title']}\n    {r['body']}\n    Source: {r['href']}")
+    return "\n\n".join(parts)
+
+
+search_tool = Tool(
+    name="web_search",
+    description="Search the web using DuckDuckGo. Returns titles, snippets, and URLs for the top results.",
+    parameters={
+        "query": {"type": "string", "description": "The search query."},
+    },
+    function=web_search,
+)
+
+print(search_tool.run(query="population of Ireland 2025"))
+
+
+def wikipedia_lookup(topic: str) -> str:
+    """Fetch the summary of a Wikipedia article."""
+    wiki = wikipediaapi.Wikipedia(user_agent="AgentLab/1.0 (educational)", language="en")
+    page = wiki.page(topic)
+    if not page.exists():
+        return f"Wikipedia article not found for: {topic}"
+    return f"Wikipedia — {page.title}:\n{page.summary[:1500]}"
+
+
+wiki_tool = Tool(
+    name="wikipedia",
+    description="Look up a topic on Wikipedia. Returns the article summary.",
+    parameters={
+        "topic": {"type": "string", "description": "The Wikipedia article title to look up."},
+    },
+    function=wikipedia_lookup,
+)
+
+print(wiki_tool.run(topic="Large language model")[:400])
