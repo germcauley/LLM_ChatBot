@@ -88,6 +88,7 @@ _SAFE_OPS = {
     ast.Pow: operator.pow, ast.Mod: operator.mod,
     ast.FloorDiv: operator.floordiv, ast.USub: operator.neg,
 }
+# test
 
 def _safe_eval(node):
     """Recursively evaluate an AST node using only whitelisted ops."""
