@@ -1,7 +1,6 @@
-from flask import Flask, request, render_template # This imports Flask for creating the web application, request for reading incoming HTTP data, and render_template for rendering an HTML template with variables.
+from flask import Flask, request, render_template,jsonify # This imports Flask for creating the web application, request for reading incoming HTTP data, and render_template for rendering an HTML template with variables.
 import json,os,datetime
 from agent import create_agent
-from PIL import Image # Pill is a common library for loading and manipulating images
 
 # constants to help with memory and user identity
 USER_ID = "25105693"
@@ -30,17 +29,60 @@ def load_or_create_files():
     if not os.path.exists(HISTORY_PATH):
         # create the history file as an empty list
         with open(HISTORY_PATH, "w") as f:
-            history_file = []
-            json.dump(history_file, f,indent=2) 
+            json.dump([], f,indent=2) 
         
 load_or_create_files()
 agent = create_agent()
 
 # setup first route
 @app.route("/", methods=["GET"])
-
 def home():
-    if request.method == "GET":
         return render_template("index.html",)
  
-   
+@app.route("/chat", methods=["POST"])
+def chat():
+    # get the message from the form frontend
+    message = request.form.get("message", "")
+    # error handling for empty message
+    if not message.strip():
+        return jsonify({"error": "Empty message"}), 400
+    # check if its a memory command
+    if message.lower().startswith("remember "):
+        memory = message[9:] # read everything after remember into memory
+        # read the memory from our user config
+        with open(USER_CONFIG_PATH, "r") as f:
+            config = json.load(f)
+            # append the memory to f
+        config["memories"].append(memory)
+        # update the config memory
+        with open(USER_CONFIG_PATH, "w") as f:
+            json.dump(config, f, indent=2)
+        return jsonify({"reply": f"Ok, I'll remember: {memory}"})
+    else:
+        answer, trace = agent.run(message)
+        
+        # save to history
+        with open(HISTORY_PATH, "r") as f:
+            history = json.load(f)
+
+        history.append({
+            "datetime": datetime.datetime.now().isoformat(),
+            "user_id": USER_ID,
+            "prompt": message,
+            "agent": "NativeToolAgent",
+            "reply": answer,
+            "trace":trace
+            })
+
+        with open(HISTORY_PATH, "w") as f:
+            json.dump(history, f, indent=2)
+    # return the response
+    return jsonify({"reply": answer})
+         
+@app.route("/reset", methods=["POST"])
+def reset():
+    agent.reset()
+    return jsonify({"status": "conversation reset"})
+
+if __name__ == "__main__":
+    app.run(debug=False, host="0.0.0.0", port=5000)
