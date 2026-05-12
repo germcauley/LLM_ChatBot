@@ -1,8 +1,7 @@
 import os
 os.environ["OLLAMA_HOST"] = "http://host.docker.internal:11434"
-
 import ollama as ollama_lib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Callable
 from datetime import date
 import re
@@ -138,7 +137,6 @@ search_tool = Tool(
     function=web_search,
 )
 
-print(search_tool.run(query="population of Ireland 2025"))
 
 
 def wikipedia_lookup(topic: str) -> str:
@@ -159,4 +157,185 @@ wiki_tool = Tool(
     function=wikipedia_lookup,
 )
 
-print(wiki_tool.run(topic="Large language model")[:400])
+
+def python_exec(code: str) -> str:
+    """Execute a Python code snippet and return stdout/stderr."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+        f.write(code)
+        f.flush()
+        try:
+            result = subprocess.run(
+                ["python3", f.name],
+                capture_output=True, text=True, timeout=10,
+            )
+            output = result.stdout.strip()
+            if result.returncode != 0:
+                output += f"\nSTDERR: {result.stderr.strip()}"
+            return output or "(no output)"
+        except subprocess.TimeoutExpired:
+            return "Error: Code execution timed out (10s limit)."
+        finally:
+            os.unlink(f.name)
+
+
+python_tool = Tool(
+    name="python_exec",
+    description="Execute a Python code snippet. Use for data processing or computation that doesn't fit the calculator. Use print() for output.",
+    parameters={
+        "code": {"type": "string", "description": "Python code to execute. Use print() for output."},
+    },
+    function=python_exec,
+)
+
+
+def read_pdf(file_path: str) -> str:
+    try:
+        result=[]
+        # Open the PDF using PyPDF2.PdfReader
+        with open(file_path, 'rb') as f:
+            reader = PyPDF2.PdfReader(f)
+            # Loop through all pages and extract text from each
+            for i in reader.pages:
+                result.append(i.extract_text())
+        # Return all the text joined together as a string
+        return "\n".join(result)
+    except FileNotFoundError:
+            return f"Error: File not found at {file_path}"
+
+#  define the tool like the ones we alrady used
+pdf_reader_tool = Tool(
+    name="pdf_reader",
+    description="Parse text from pdf files",
+    parameters={
+        "file_path": {"type": "string", "description": "The filepath of the pdf file you want to read"},
+    },
+    function=read_pdf,
+)
+
+
+today = date.today().isoformat()
+class NativeToolAgent:
+    """Agent using Qwen3's native function-calling via Ollama's chat API."""
+
+    def __init__(
+        self,
+        model: str = "qwen3:8b",
+        registry: ToolRegistry = None,
+        max_iterations: int = 8,
+        enable_thinking: bool = True,
+        verbose: bool = True,
+    ):
+        self.model = model
+        self.registry = registry
+        self.max_iterations = max_iterations
+        self.enable_thinking = enable_thinking
+        self.verbose = verbose
+        # add memory
+        self.messages = [
+            {"role": "system", "content": (
+                f"You are a helpful assistant with tool access.  Today's date is {today}. "
+                "Use tools when needed to answer accurately. "
+                "Do not guess — look things up."
+            )}
+        ]
+
+    def _log(self, msg: str):
+        if self.verbose:
+            print(msg)
+
+    def reset(self):
+        """Reset conversation history"""
+        self.messages = self.messages[:1]
+        self._log("Conversation history has been reset.")
+
+    def check_context_length(self):
+        """Summarise the conversation history if it gets too long."""
+        # if there are more than 20 messages, summarise the chat history
+        if len(self.messages) > 20:
+            
+            summary_response = ollama_lib.chat(
+                model=self.model,
+                messages=self.messages + [
+                    {"role": "user", "content": "Summarise our conversation so far in a few sentences."}
+                ],
+            )
+            summary = summary_response.message.content
+            
+            # Replace history with system message + summary
+            self.messages = [
+                self.messages[0],  # keep system message so agent retains instructions etc
+                {"role": "assistant", "content": f"Previous conversation summary: {summary}"}
+            ]
+            self._log(" Context summarised.")
+
+    def run(self, query: str) -> tuple[str, list[dict]]:
+        """Execute the agent loop using native tool calling."""
+        # always check converation length, summarise if it reaches limit we set
+        self.check_context_length()
+        # appends to existing chat history instead of a fresh conversation each time
+        self.messages.append({"role": "user", "content": query})
+        
+        tools = self.registry.to_ollama_tools()
+        trace = []
+
+        for i in range(1, self.max_iterations + 1):
+            self._log(f"\n{'='*60}\n  ITERATION {i}\n{'='*60}")
+
+            response = ollama_lib.chat(
+                model=self.model,
+                messages=self.messages,
+                tools=tools,
+                think=self.enable_thinking,
+                options={"temperature": 0.1},
+            )
+            msg = response.message
+
+            # No tool calls → final answer
+            if not msg.tool_calls:
+                self._log(f"\n✅ Final Answer: {msg.content[:300]}")
+                trace.append({"iteration": i, "type": "answer", "content": msg.content})
+                return msg.content, trace
+
+            # Process tool calls
+            self.messages.append(msg)
+
+            for call in msg.tool_calls:
+                fn_name = call.function.name
+                fn_args = call.function.arguments
+                self._log(f"\n🔧 Tool call: {fn_name}({fn_args})")
+
+                tool = self.registry.get(fn_name)
+                if tool is None:
+                    result = f"Error: Unknown tool '{fn_name}'"
+                else:
+                    result = tool.run(**fn_args)
+
+                if len(result) > 2000:
+                    result = result[:2000] + "\n... (truncated)"
+
+                self._log(f"  👁️ Result: {result[:200]}")
+
+                self.messages.append({
+                    "role": "tool",
+                    "tool_name": fn_name,
+                    "content": result,
+                })
+                trace.append({
+                    "iteration": i, "type": "tool_call",
+                    "tool": fn_name, "args": fn_args,
+                    "result": result[:500],
+                })
+
+        self._log(f"\n⚠️ Max iterations ({self.max_iterations}) reached.")
+        return "Reached step limit without a final answer.", trace
+    
+def create_agent(model: str = "qwen3:8b") -> NativeToolAgent:
+    """Create and return a configured agent with all tools registered."""
+    registry = ToolRegistry()
+    registry.register(calc_tool)
+    registry.register(search_tool)
+    registry.register(wiki_tool)
+    registry.register(python_tool)
+    registry.register(pdf_reader_tool)
+    
+    return NativeToolAgent(model=model, registry=registry)
