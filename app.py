@@ -1,6 +1,6 @@
 from flask import Flask, request, render_template,jsonify # This imports Flask for creating the web application, request for reading incoming HTTP data, and render_template for rendering an HTML template with variables.
-import json,os,datetime
-from agent import create_agent
+import json,os,datetime,tempfile
+from agent import create_agent, read_pdf
 
 # constants to help with memory and user identity
 USER_ID = "25105693"
@@ -59,7 +59,31 @@ def chat():
             json.dump(config, f, indent=2)
         return jsonify({"reply": f"Ok, I'll remember: {memory}"})
     else:
+        # the file we upload, returns none if no file
+        file = request.files.get("file")
+        
+        # check filetype
+        if file:
+            filename = file.filename.lower()
+            if filename.endswith(".pdf"):
+                # handle PDF use the pdf tool, read using tempfile
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    file.save(tmp.name)
+                    # use our pdf tool from our agent
+                    pdf_text = read_pdf(tmp.name)
+                    os.unlink(tmp.name)  # delete temp file after reading
+                    message = message + f"\n\nPDF Content:\n{pdf_text}"
+            elif filename.endswith((".jpg", ".jpeg", ".png", ".gif", ".webp")):
+        # handle image files
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                    file.save(tmp.name)
+                with open(tmp.name, "rb") as img_file:
+                    image_data = base64.b64encode(img_file.read()).decode("utf-8")
+                os.unlink(tmp.name)
+                message = message + f"\n\n[IMAGE_DATA:{image_data}]"
+
         answer, trace = agent.run(message)
+        
         
         # save to history
         with open(HISTORY_PATH, "r") as f:
