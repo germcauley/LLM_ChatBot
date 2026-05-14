@@ -224,6 +224,7 @@ class NativeToolAgent:
         max_iterations: int = 8,
         enable_thinking: bool = True,
         verbose: bool = True,
+        memories: list = None
     ):
         self.model = model
         self.registry = registry
@@ -231,11 +232,18 @@ class NativeToolAgent:
         self.enable_thinking = enable_thinking
         self.verbose = verbose
         # add memory
+        memory_text = ""
+        if memories:
+            memory_text = "\n\nThe following facts have been shared by the user you are talking to. Use them when relevant but do not introduce yourself using them:\n" + "\n".join(f"- {m}" for m in memories)
+
         self.messages = [
             {"role": "system", "content": (
-                f"You are a helpful assistant with tool access.  Today's date is {today}. "
+                f"You are a helpful assistant with tool access. Today's date is {today}. "
                 "Use tools when needed to answer accurately. "
-                "Do not guess — look things up."
+                "Do not guess — look things up. "
+                "Answer the question asked and stop, do not add unrequested examples, code snippets, or extra information. "
+                "NEVER use emojis in your response. "
+                f"{memory_text}"
             )}
         ]
 
@@ -273,7 +281,18 @@ class NativeToolAgent:
         # always check converation length, summarise if it reaches limit we set
         self.check_context_length()
         # appends to existing chat history instead of a fresh conversation each time
-        self.messages.append({"role": "user", "content": query})
+        # we want to take in more tha just plain text so use re to extract
+        match = re.search(r'\[IMAGE_DATA:(.*?)\]', query)
+        if match:
+            image_data = match.group(1)
+            clean_message = re.sub(r'\[IMAGE_DATA:.*?\]', '', query).strip()
+            self.messages.append({
+                "role": "user", 
+                "content": clean_message,
+                "images": [image_data]
+            })
+        else:
+            self.messages.append({"role": "user", "content": query})
         
         tools = self.registry.to_ollama_tools()
         trace = []
@@ -328,8 +347,8 @@ class NativeToolAgent:
 
         self._log(f"\n⚠️ Max iterations ({self.max_iterations}) reached.")
         return "Reached step limit without a final answer.", trace
-    
-def create_agent(model: str = "qwen3:8b") -> NativeToolAgent:
+    # agent with memory parameter
+def create_agent(model: str = "qwen3:8b",memories: list = None) -> NativeToolAgent:
     """Create and return a configured agent with all tools registered."""
     registry = ToolRegistry()
     registry.register(calc_tool)
@@ -338,4 +357,4 @@ def create_agent(model: str = "qwen3:8b") -> NativeToolAgent:
     registry.register(python_tool)
     registry.register(pdf_reader_tool)
     
-    return NativeToolAgent(model=model, registry=registry)
+    return NativeToolAgent(model=model, registry=registry, memories=memories)

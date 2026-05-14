@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template,jsonify # This imports Flask for creating the web application, request for reading incoming HTTP data, and render_template for rendering an HTML template with variables.
-import json,os,datetime,tempfile
+import json,os,datetime,tempfile, base64
 from agent import create_agent, read_pdf
 
 # constants to help with memory and user identity
@@ -15,6 +15,8 @@ app = Flask(__name__)
 
 
 def load_or_create_files():
+    # create the user config file if not already there
+    os.makedirs("user_config", exist_ok=True)
         # check if the user files we need exist
     if not os.path.exists(USER_CONFIG_PATH):
         # create the user config files
@@ -32,7 +34,15 @@ def load_or_create_files():
             json.dump([], f,indent=2) 
         
 load_or_create_files()
-agent = create_agent()
+# load any memories that are stored
+def load_memories():
+    if os.path.exists(USER_CONFIG_PATH):
+        with open(USER_CONFIG_PATH, "r") as f:
+            config = json.load(f)
+            return config.get("memories", [])
+    return []
+
+agent = create_agent(memories=load_memories())
 
 # setup first route
 @app.route("/", methods=["GET"])
@@ -43,11 +53,18 @@ def home():
 def chat():
     # get the message from the form frontend
     message = request.form.get("message", "")
-    # error handling for empty message
-    if not message.strip():
-        return jsonify({"error": "Empty message"}), 400
+    # get any uploaded file
+    file = request.files.get("file")
+    # error handling for empty 
+    if not message.strip() and not file:
+        return jsonify({"error": "Please enter a message or upload a file"}), 400
+     # set default message if file uploaded without text
+    if not message.strip() and file:
+        message = "Please analyse this file."
     # check if its a memory command
     if message.lower().startswith("remember "):
+        #tells Python to update the shared agent variable, useful for remember command
+        global agent
         memory = message[9:] # read everything after remember into memory
         # read the memory from our user config
         with open(USER_CONFIG_PATH, "r") as f:
@@ -57,11 +74,14 @@ def chat():
         # update the config memory
         with open(USER_CONFIG_PATH, "w") as f:
             json.dump(config, f, indent=2)
+        # recreate the agent so the new memory is in the system prompt immediately
+        # save session history, skip old system prompt
+        old_messages = agent.messages[1:]  
+        agent = create_agent(memories=load_memories())
+        # restore session history into new agent using extend, so they get added one by one instead of a single list
+        agent.messages.extend(old_messages) 
         return jsonify({"reply": f"Ok, I'll remember: {memory}"})
     else:
-        # the file we upload, returns none if no file
-        file = request.files.get("file")
-        
         # check filetype
         if file:
             filename = file.filename.lower()

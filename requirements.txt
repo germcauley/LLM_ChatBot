@@ -6,3 +6,4 @@ wikipedia-api
 google-genai
 pypdf2
 Pillow
+requests
