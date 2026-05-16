@@ -241,7 +241,7 @@ class NativeToolAgent:
                 f"You are a helpful assistant with tool access. Today's date is {today}. "
                 "Use tools when needed to answer accurately. "
                 "Do not guess — look things up. "
-                "Answer the question asked and stop, do not add unrequested examples, code snippets, or extra information. "
+                "Answer only the specific question asked. If the user asks about one memory, answer that one thing only, do not list other memories. "
                 "NEVER use emojis in your response. "
                 f"{memory_text}"
             )}
