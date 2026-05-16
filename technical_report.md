@@ -240,7 +240,15 @@ Tool results are truncated at 2,000 characters before being appended to the mess
 
 **Solution:** Carefully audited all references to ensure the instance variable `self.messages` is used consistently throughout the `run()` method. This is a common notebook to module issue because notebooks treat all variables as global.
 
-### 7.4 Gunicorn Timeout Killing Requests
+### 7.4 Model including unrelated content in memory queries 
+
+**Problem:** When asked a specific question about one memory (e.g. "what is my favourite ice cream?"), the model sometimes listed unrelated memories in its response, or prefaced the answer with irrelevant stored facts. When asked to tell a joke, it would output memories before answering.
+
+**Root cause:** From what I can determine, qwen3:8b does not reliably follow instructions about response scope. The memories are all injected into the system prompt together, and the model occasionally treats them as content to include rather than background context to draw from selectively.
+
+**Partial fix:** Updated the system prompt instruction to "Answer only the specific question asked. If the user asks about one memory, answer that one thing only, do not list other memories." This reduced but did not fully eliminate the behaviour. This is a known limitation of smaller LLMs and would be improved by using a larger model.
+
+### 7.5 Gunicorn Timeout Killing Requests
 
 **Problem:** The first deployment with default Gunicorn settings killed LLM requests after 30 seconds with a `[CRITICAL] WORKER TIMEOUT` error.
 

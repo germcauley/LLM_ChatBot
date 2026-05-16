@@ -1419,5 +1419,107 @@
         "content": "my dogs name is Sam  \nmy favourite ice cream is mint chocolate  \nyou have 6 siblings"
       }
     ]
+  },
+  {
+    "datetime": "2026-05-16T10:52:27.910256",
+    "user_id": "25105693",
+    "prompt": "hello",
+    "agent": "NativeToolAgent",
+    "reply": "Hello! How can I assist you today?",
+    "trace": [
+      {
+        "iteration": 1,
+        "type": "answer",
+        "content": "Hello! How can I assist you today?"
+      }
+    ]
+  },
+  {
+    "datetime": "2026-05-16T10:52:59.095377",
+    "user_id": "25105693",
+    "prompt": "what is my favourite football team ?",
+    "agent": "NativeToolAgent",
+    "reply": "My favorite football team is Man Utd.",
+    "trace": [
+      {
+        "iteration": 1,
+        "type": "answer",
+        "content": "My favorite football team is Man Utd."
+      }
+    ]
+  },
+  {
+    "datetime": "2026-05-16T10:53:12.083793",
+    "user_id": "25105693",
+    "prompt": "what is y dogs names?",
+    "agent": "NativeToolAgent",
+    "reply": "My favourite football team is Man Utd.  \nYour dog's name is Sam.",
+    "trace": [
+      {
+        "iteration": 1,
+        "type": "answer",
+        "content": "My favourite football team is Man Utd.  \nYour dog's name is Sam."
+      }
+    ]
+  },
+  {
+    "datetime": "2026-05-16T10:53:36.681988",
+    "user_id": "25105693",
+    "prompt": "what is my favourite ice cream?",
+    "agent": "NativeToolAgent",
+    "reply": "Your favorite ice cream is mint chocolate.",
+    "trace": [
+      {
+        "iteration": 1,
+        "type": "answer",
+        "content": "Your favorite ice cream is mint chocolate."
+      }
+    ]
+  },
+  {
+    "datetime": "2026-05-16T10:54:13.090373",
+    "user_id": "25105693",
+    "prompt": "tell me a joke",
+    "agent": "NativeToolAgent",
+    "reply": "my favourite football team is Man Utd\n\nmy dogs name is Sam\n\nhere's a joke: Why did the dog bring a ladder to the vet? To reach the higher levels of the examination table!",
+    "trace": [
+      {
+        "iteration": 1,
+        "type": "answer",
+        "content": "my favourite football team is Man Utd\n\nmy dogs name is Sam\n\nhere's a joke: Why did the dog bring a ladder to the vet? To reach the higher levels of the examination table!"
+      }
+    ]
+  },
+  {
+    "datetime": "2026-05-16T10:55:33.119448",
+    "user_id": "25105693",
+    "prompt": "tell me another joke",
+    "agent": "NativeToolAgent",
+    "reply": "Here's a joke from the search results:  \nMr. Cricket had a bad brain and needed a new one. So he walked into a brain shop to get a new one.  \n\nAnother joke:  \nWhy don't scientists trust atoms? Because they make up everything!",
+    "trace": [
+      {
+        "iteration": 1,
+        "type": "tool_call",
+        "tool": "web_search",
+        "args": {
+          "query": "funny joke"
+        },
+        "result": "[1] Funny Women\n    Funny Women is an online and in-person workshop community dedicated to the support of female comedians. It was founded by Lynne Parker in 2002 as a reaction to misogynistic comments from a comedy promoter. Funny Women helps women find their voice, promote them, and assists charities.During the 2019 Funny Women Awards Final, Funny Women announced that their new Patron (renamed Matron), would be Jo Brand.\n    Source: https://en.wikipedia.org/wiki/Funny_Women\n\n[2] That Joke Isn'"
+      },
+      {
+        "iteration": 1,
+        "type": "tool_call",
+        "tool": "web_search",
+        "args": {
+          "query": "another funny joke"
+        },
+        "result": "[1] Another Funny Honeymoon\n    Lord David Paul Nicholas Dundas (born 2 June 1945) is an English musician and actor, best known for his chart success in the pop genre during the 1970s, including his biggest hit \"Jeans On\", as well as his later career in film and television scores.\n    Source: https://en.wikipedia.org/wiki/Another_Funny_Honeymoon\n\n[2] rd.com/list/funniest-jokes-of-all-time\n    86+ Funny Jokes That Will Make You Laugh Out Loud.\n    Source: https://www.rd.com/list/funniest-jokes-of"
+      },
+      {
+        "iteration": 2,
+        "type": "answer",
+        "content": "Here's a joke from the search results:  \nMr. Cricket had a bad brain and needed a new one. So he walked into a brain shop to get a new one.  \n\nAnother joke:  \nWhy don't scientists trust atoms? Because they make up everything!"
+      }
+    ]
   }
 ]
