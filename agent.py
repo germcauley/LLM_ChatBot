@@ -345,7 +345,7 @@ class NativeToolAgent:
                     "result": result[:500],
                 })
 
-        self._log(f"\n⚠️ Max iterations ({self.max_iterations}) reached.")
+        self._log(f"\n Max iterations ({self.max_iterations}) reached.")
         return "Reached step limit without a final answer.", trace
     # agent with memory parameter
 def create_agent(model: str = "qwen3:8b",memories: list = None) -> NativeToolAgent:

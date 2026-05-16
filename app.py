@@ -103,9 +103,18 @@ def chat():
                 message = message + f"\n\n[IMAGE_DATA:{image_data}]"
 
         answer, trace = agent.run(message)
-        
-        
-        # save to history
+
+        # if the agent has summarised the conversation, save to the user config
+        for msg in agent.messages:
+            if msg.get("role") == "assistant" and msg.get("content", "").startswith("Previous conversation summary:"):
+                with open(USER_CONFIG_PATH, "r") as f:
+                    config = json.load(f)
+                config["conversation_summary"] = msg["content"]
+                with open(USER_CONFIG_PATH, "w") as f:
+                    json.dump(config, f, indent=2)
+                break
+
+        # save to te history
         with open(HISTORY_PATH, "r") as f:
             history = json.load(f)
 
@@ -123,6 +132,8 @@ def chat():
     # return the response
     return jsonify({"reply": answer})
          
+         
+#reset route clears chat
 @app.route("/reset", methods=["POST"])
 def reset():
     agent.reset()
